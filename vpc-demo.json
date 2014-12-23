@@ -1,6 +1,6 @@
 
 {
-  "AWSTemplateFormatVersion" : "2014-12-23",
+  "AWSTemplateFormatVersion" : "2010-09-09",
 
   "Description" : "AWS Training - VPCDemo template",
 
@@ -16,9 +16,9 @@
 		},
 		"NatInstanceType" : {
       "Type" : "String",
-      "Default" : "t2.micro",
+      "Default" : "t1.micro",
       "Description" : "EC2 instance type for the NAT instance , e.g. m1.small, m1.large, etc. Note: Instance rates apply.",
-			"AllowedValues" : ["t2.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "c1.medium", "c1.xlarge"],
+			"AllowedValues" : ["t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "c1.medium", "c1.xlarge"],
     	"ConstraintDescription" : "Must be a valid EC2 NAT instance type."
     },
 		"VpcIpCidrBlock" : {
@@ -26,22 +26,22 @@
 			"Default" : "10.170.0.0/16",
 			"Description" : "The IP CIDR block for the VPC."
 		},
-		"PublicSubnetIpCidrBlock_1" : {
+		"PublicSubnetIpCidrBlock1" : {
 			"Type" : "String",
 			"Default" : "10.170.1.0/24",
 			"Description" : "The IP CIDR block for the 1st public subnet."
 		},
-		"PublicSubnetIpCidrBlock_2" : {
+		"PublicSubnetIpCidrBlock2" : {
 			"Type" : "String",
 			"Default" : "10.170.2.0/24",
 			"Description" : "The IP CIDR block for the 2nd public subnet."
 		},
-		"PrivateSubnetIpCidrBlock_1" : {
+		"PrivateSubnetIpCidrBlock1" : {
 			"Type" : "String",
 			"Default" : "10.170.64.0/22",
 			"Description" : "The IP CIDR block for the 1st private subnet."
 		},
-		"PrivateSubnetIpCidrBlock_2" : {
+		"PrivateSubnetIpCidrBlock2" : {
 			"Type" : "String",
 			"Default" : "10.170.128.0/22",
 			"Description" : "The IP CIDR block for the 2nd private subnet."
@@ -50,7 +50,7 @@
 
   "Mappings" : {
 		"AWSInstanceType2Arch" : {
-	  	"t2.micro"    : { "Arch" : "64" },
+	  	"t1.micro"    : { "Arch" : "64" },
       "m1.small"    : { "Arch" : "64" },
       "m1.medium"   : { "Arch" : "64" },
       "m1.large"    : { "Arch" : "64" },
@@ -70,9 +70,11 @@
       "ap-southeast-1" : { "64" : "ami-02eb9350" },
       "ap-southeast-2" : { "64" : "ami-39d3be03" }
     },
-    "APSE2AZs" : {
-    	"AZ1" : "ap-southeast-2a",
-    	"AZ2" : "ap-southeast-2b"
+    "Region2AZ" : {
+      "us-west-1" : { "AZ1" : "us-west-1a", "AZ2" : "us-west-1b" },
+      "us-east-1" : { "AZ1" : "us-east-1a", "AZ2" : "us-east-1b", "AZ3" : "us-east-1c" },
+      "eu-west-1" : { "AZ1" : "eu-west-1a", "AZ2" : "eu-west-1b"},
+      "ap-southeast-2" : { "AZ1" : "ap-southeast-2a", "AZ2" : "ap-southeast-2b"}
     }
   },
 
@@ -86,70 +88,78 @@
         "InstanceTenancy" : "default",
         "Tags" : [
         	{"Key" : "Name", "Value": "VPCDemo"},
-          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} }
         ]
       }
     },
 
-		"PublicSubnet_1" : {
+		"PublicSubnet1" : {
 	      "Type" : "AWS::EC2::Subnet",
 	      "Properties" : {
 	        "VpcId" : { "Ref" : "VPCDemo" },
-					"CidrBlock" : { "Ref" : "PublicSubnetIpCidrBlock_1" },
-					"AvailabilityZone" : "ap-southeast-2b",
+					"CidrBlock" : { "Ref" : "PublicSubnetIpCidrBlock1" },
+					"AvailabilityZone" : {"Fn::FindInMap" : [ "Region2AZ", { "Ref" : "AWS::Region" }, "AZ1"] },
 	        "Tags" : [
-	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
-	          {"Key" : "Network", "Value" : "Public" },
-	          {"Key" : "Name", "Value" : "PublicSubnet"}
-	        ]
-	      }
-	    },
-
-			"InternetGateway" : {
-	      "Type" : "AWS::EC2::InternetGateway"
-	    },
-
-	    "AttachGateway" : {
-	       "Type" : "AWS::EC2::VPCGatewayAttachment",
-	       "Properties" : {
-	         "VpcId" : { "Ref" : "VPC" },
-	         "InternetGatewayId" : { "Ref" : "InternetGateway" }
-	       }
-	    },
-
-	    "PublicRouteTable" : {
-	      "Type" : "AWS::EC2::RouteTable",
-	      "Properties" : {
-	        "VpcId" : {"Ref" : "VPC"},
-	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PublicSubnet1"},
 	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
 	          {"Key" : "Network", "Value" : "Public" }
 	        ]
 	      }
 	    },
 
-	    "PublicRoute" : {
+			"InternetGateway" : {
+	      "Type" : "AWS::EC2::InternetGateway",
+	      "Properties" : {
+	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "InternetGateway"},
+	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} }
+	        ]
+	      }
+	    },
+
+	    "AttachGateway" : {
+	       "Type" : "AWS::EC2::VPCGatewayAttachment",
+	       "Properties" : {
+	         "VpcId" : { "Ref" : "VPCDemo" },
+	         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+	       }
+	    },
+
+	    "PublicRouteTable1" : {
+	      "Type" : "AWS::EC2::RouteTable",
+	      "Properties" : {
+	        "VpcId" : {"Ref" : "VPCDemo"},
+	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PublicRouteTable1"},
+	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
+	          {"Key" : "Network", "Value" : "Public" }
+	        ]
+	      }
+	    },
+
+	    "PublicRoute1" : {
 	      "Type" : "AWS::EC2::Route",
 	      "Properties" : {
-	        "RouteTableId" : { "Ref" : "PublicRouteTable" },
+	        "RouteTableId" : { "Ref" : "PublicRouteTable1" },
 	        "DestinationCidrBlock" : "0.0.0.0/0",
 	        "GatewayId" : { "Ref" : "InternetGateway" }
 	      }
 	    },
 
-	    "PublicSubnetRouteTableAssociation" : {
+	    "PublicSubnetRouteTableAssociation1" : {
 	      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
 	      "Properties" : {
-	        "SubnetId" : { "Ref" : "PublicSubnet" },
-	        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+	        "SubnetId" : { "Ref" : "PublicSubnet1" },
+	        "RouteTableId" : { "Ref" : "PublicRouteTable1" }
 	      }
 	    },
 
 	    "PublicNetworkAcl" : {
 	      "Type" : "AWS::EC2::NetworkAcl",
 	      "Properties" : {
-	        "VpcId" : {"Ref" : "VPC"},
+	        "VpcId" : {"Ref" : "VPCDemo"},
 	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PublicNetworkAcl"},
 	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
 	          {"Key" : "Network", "Value" : "Public" }
 	        ]
@@ -182,59 +192,63 @@
 	      }
 	    },
 
-	    "PublicSubnetNetworkAclAssociation" : {
+	    "PublicSubnetNetworkAclAssociation1" : {
 	      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
 	      "Properties" : {
-	        "SubnetId" : { "Ref" : "PublicSubnet" },
+	        "SubnetId" : { "Ref" : "PublicSubnet1" },
 	        "NetworkAclId" : { "Ref" : "PublicNetworkAcl" }
 	      }
 	    },
 
-	    "PrivateSubnet" : {
+	    "PrivateSubnet1" : {
 	      "Type" : "AWS::EC2::Subnet",
 	      "Properties" : {
-	        "VpcId" : { "Ref" : "VPC" },
-					"CidrBlock" : { "Ref" : "PrivateSubnetIpCidrBlock" },
+	        "VpcId" : { "Ref" : "VPCDemo" },
+					"CidrBlock" : { "Ref" : "PrivateSubnetIpCidrBlock1" },
+					"AvailabilityZone" : {"Fn::FindInMap" : [ "Region2AZ", { "Ref" : "AWS::Region" }, "AZ1" ] },
 	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PrivateSubnet1"},
 	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
 	          {"Key" : "Network", "Value" : "Private" }
 	        ]
 	      }
 	    },
 
-	    "PrivateRouteTable" : {
+	    "PrivateRouteTable1" : {
 	      "Type" : "AWS::EC2::RouteTable",
 	      "Properties" : {
-	        "VpcId" : {"Ref" : "VPC"},
+	        "VpcId" : {"Ref" : "VPCDemo"},
 	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PrivateRouteTable1"},
 	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
 	          {"Key" : "Network", "Value" : "Private" }
 	        ]
 	      }
 	    },
 
-			"PrivateNatRoute" : {
+			"PrivateNatRoute1" : {
 	      "Type" : "AWS::EC2::Route",
 	      "Properties" : {
-	        "RouteTableId" : { "Ref" : "PrivateRouteTable" },
+	        "RouteTableId" : { "Ref" : "PrivateRouteTable1" },
 	        "DestinationCidrBlock" : "0.0.0.0/0",
-	        "InstanceId" : { "Ref" : "NatInstance" }
+	        "InstanceId" : { "Ref" : "NatInstance1" }
 	      }
 	    },
 
-	    "PrivateSubnetRouteTableAssociation" : {
+	    "PrivateSubnetRouteTableAssociation1" : {
 	      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
 	      "Properties" : {
-	        "SubnetId" : { "Ref" : "PrivateSubnet" },
-	        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+	        "SubnetId" : { "Ref" : "PrivateSubnet1" },
+	        "RouteTableId" : { "Ref" : "PrivateRouteTable1" }
 	      }
 	    },
 
 	    "PrivateNetworkAcl" : {
 	      "Type" : "AWS::EC2::NetworkAcl",
 	      "Properties" : {
-	        "VpcId" : {"Ref" : "VPC"},
+	        "VpcId" : {"Ref" : "VPCDemo"},
 	        "Tags" : [
+	        	{"Key" : "Name", "Value" : "PrivateNetworkAcl"},
 	          {"Key" : "Application", "Value" : { "Ref" : "AWS::StackName"} },
 	          {"Key" : "Network", "Value" : "Private" }
 	        ]
@@ -267,61 +281,61 @@
 	      }
 	    },
 
-	    "PrivateSubnetNetworkAclAssociation" : {
+	    "PrivateSubnetNetworkAclAssociation1" : {
 	      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
 	      "Properties" : {
-	        "SubnetId" : { "Ref" : "PrivateSubnet" },
+	        "SubnetId" : { "Ref" : "PrivateSubnet1" },
 	        "NetworkAclId" : { "Ref" : "PrivateNetworkAcl" }
 	      }
 	    },
 
-		"NatInstance" : {
+		"NatInstance1" : {
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
         "KeyName" : { "Ref" : "KeyName" },
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "NatInstanceType" }, "Arch" ] } ] },
 				"InstanceType" : { "Ref" : "NatInstanceType" },
-				"NetworkInterfaces" : [ { "NetworkInterfaceId" : {"Ref" : "NatInstanceInterface"}, "DeviceIndex" : "0" } ],
+				"NetworkInterfaces" : [ { "NetworkInterfaceId" : {"Ref" : "NatInstanceInterface1"}, "DeviceIndex" : "0" } ],
 				"Tags" : [
 					{
 						"Key" : "Name",
-						"Value" : "NAT Instance"
+						"Value" : "NAT Instance1"
 					}
 				]
       }
     },
 
-		"NatInstanceInterface" : {
+		"NatInstanceInterface1" : {
 		      "Type" : "AWS::EC2::NetworkInterface",
 		      "Properties" : {
-		        "SubnetId" : { "Ref" : "PublicSubnet" },
+		        "SubnetId" : { "Ref" : "PublicSubnet1" },
 		        "Description" :"Interface for control traffic such as SSH",
-		        "GroupSet" : [ { "Ref" : "NatInstanceSecurityGroup" } ],
+		        "GroupSet" : [ { "Ref" : "NatInstanceSecurityGroup1" } ],
 		        "SourceDestCheck" : "false",
 		        "Tags" : [ {"Key" : "Network", "Value" : "Control"}]
 		      }
 		    },
 
-		"NatInstanceIpAddress" : {
+		"NatInstanceIpAddress1" : {
 			"Type" : "AWS::EC2::EIP",
 			"Properties" : {
-				"Domain" : "vpc"
+				"Domain" : "VPCDemo"
 			}
 		},
 
-		"AssociateNatInstanceIpAddress" : {
+		"AssociateNatInstanceIpAddress1" : {
       "Type" : "AWS::EC2::EIPAssociation",
       "Properties" : {
-        "AllocationId" : { "Fn::GetAtt" : [ "NatInstanceIpAddress", "AllocationId" ]},
-        "NetworkInterfaceId" : { "Ref" : "NatInstanceInterface" }
+        "AllocationId" : { "Fn::GetAtt" : [ "NatInstanceIpAddress1", "AllocationId" ]},
+        "NetworkInterfaceId" : { "Ref" : "NatInstanceInterface1" }
       }
     },
 
-		"NatInstanceSecurityGroup" : {
+		"NatInstanceSecurityGroup1" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
         "GroupDescription" : "Enable NAT for instances in private subnets",
-				"VpcId" : { "Ref" : "VPC" },
+				"VpcId" : { "Ref" : "VPCDemo" },
         "SecurityGroupIngress" : [
 					{
 						"IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"
@@ -337,9 +351,9 @@
   },
 
   "Outputs" : {
-    "NatInstancePublicIP" : {
-      "Description" : "Public Elastic IP address of the NAT instance.",
-      "Value" : { "Ref" : "NatInstanceIpAddress" }
+    "NatInstancePublicIP1" : {
+      "Description" : "Public Elastic IP address of the NAT instance1.",
+      "Value" : { "Ref" : "NatInstanceIpAddress1" }
     }
   }
 }
