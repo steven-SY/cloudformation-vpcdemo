@@ -676,7 +676,7 @@
         "Listeners" : [ {
           "LoadBalancerPort" : "80",
           "InstancePort" : "80",
-          "Protocol" : "tcp"
+          "Protocol" : "http"
         } ],
         "HealthCheck" : {
           "Target" : "HTTP:80/",
