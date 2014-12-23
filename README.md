@@ -1,0 +1,4 @@
+cloudformation-vpcdemo
+======================
+
+VPN template
