@@ -8,7 +8,7 @@
 		"KeyName" : {
 			"Description" : "Key Pair used to launch the NAT instance.",
 			"Type" : "String",
-			"Default" : "mykey",
+			"Default" : "steven-yu",
 			"MinLength": "1",
       "MaxLength": "64",
       "AllowedPattern" : "[-_ a-zA-Z0-9]*",
@@ -24,7 +24,7 @@
     "WebServerInstanceType" : {
       "Description" : "WebServer EC2 instance type",
       "Type" : "String",
-      "Default" : "t2.micro",
+      "Default" : "t1.micro",
       "AllowedValues" : [ "t1.micro", "t2.micro", "t2.small", "t2.medium", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge", "c1.medium", "c1.xlarge", "c3.large", "c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", "g2.2xlarge", "r3.large", "r3.xlarge", "r3.2xlarge", "r3.4xlarge", "r3.8xlarge", "i2.xlarge", "i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "hi1.4xlarge", "hs1.8xlarge", "cr1.8xlarge", "cc2.8xlarge", "cg1.4xlarge"],
       "ConstraintDescription" : "must be a valid EC2 instance type."
     },
@@ -54,6 +54,16 @@
 			"Default" : "10.170.128.0/22",
 			"Description" : "The IP CIDR block for the 2nd private subnet."
 		},
+		"DnsPrefix" : {
+      "Description" : "Prefix for Jenkins' DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": "steven.aws"
+    },
+    "DnsZone" : {
+      "Description" : "Route53-hosted zone to use for the DNS record (<prefix>.<zone>)",
+      "Type": "String",
+      "Default": "polarseven.com"
+    },
 	 "SSHLocation" : {
       "Description" : "The IP address range that can be used to SSH to the EC2 instances",
       "Type": "String",
@@ -519,14 +529,14 @@
 		"NatInstanceIpAddress1" : {
 			"Type" : "AWS::EC2::EIP",
 			"Properties" : {
-				"Domain" : "VPCDemo"
+				"Domain" : "vpc"
 			}
 		},
 
 		"NatInstanceIpAddress2" : {
 			"Type" : "AWS::EC2::EIP",
 			"Properties" : {
-				"Domain" : "VPCDemo"
+				"Domain" : "vpc"
 			}
 		},
 
@@ -568,10 +578,12 @@
     "WebServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
       "Properties" : {
-        "AvailabilityZones" : { "Fn::GetAZs" : ""},
+        "AvailabilityZones" : [{ "Fn::FindInMap" : [ "Region2AZ", { "Ref" : "AWS::Region" }, "AZ1"]}],
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
-        "MinSize" : "1",
-        "MaxSize" : "1",
+        "MinSize" : "2",
+        "MaxSize" : "2",
+        "HealthCheckType" : "EC2",
+        "VPCZoneIdentifier" : [ { "Ref" : "PrivateSubnet1" } ],
         "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
       }
     },
@@ -638,7 +650,7 @@
         "KeyName" : { "Ref" : "KeyName" },
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMIWeb", { "Ref" : "AWS::Region" },
                                           { "Fn::FindInMap" : [ "AWSInstanceType2ArchWeb", { "Ref" : "WebServerInstanceType" }, "Arch" ] } ] },
-        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+        "SecurityGroups" : [ {"Fn::GetAtt" : ["InstanceSecurityGroup", "GroupId"]} ],
         "InstanceType" : { "Ref" : "WebServerInstanceType" },
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
@@ -660,12 +672,11 @@
     "ElasticLoadBalancer" : {
       "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties" : {
-        "AvailabilityZones" : { "Fn::GetAZs" : "" },
-        "CrossZone" : "true",
+        "Subnets" : [{ "Ref" : "PublicSubnet1" } ],
         "Listeners" : [ {
           "LoadBalancerPort" : "80",
           "InstancePort" : "80",
-          "Protocol" : "HTTP"
+          "Protocol" : "tcp"
         } ],
         "HealthCheck" : {
           "Target" : "HTTP:80/",
@@ -677,10 +688,12 @@
       }
     },
 
+
     "InstanceSecurityGroup" : {
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
         "GroupDescription" : "Enable SSH access and HTTP from the load balancer only",
+        "VpcId" : { "Ref" : "VPCDemo" },
         "SecurityGroupIngress" : [ {
           "IpProtocol" : "tcp",
           "FromPort" : "22",
@@ -691,13 +704,29 @@
           "IpProtocol" : "tcp",
           "FromPort" : "80",
           "ToPort" : "80",
-          "SourceSecurityGroupOwnerId" : {"Fn::GetAtt" : ["ElasticLoadBalancer", "SourceSecurityGroup.OwnerAlias"]},
-          "SourceSecurityGroupName" : {"Fn::GetAtt" : ["ElasticLoadBalancer", "SourceSecurityGroup.GroupName"]}
+          "CidrIp" : "0.0.0.0/0"
         } ]
       }
+    },
+
+  	"DnsRecord" : {
+      "Type" : "AWS::Route53::RecordSet",
+      "Properties" : {
+        "HostedZoneName" : { "Fn::Join" : [ "", [{"Ref" : "DnsZone"}, "." ]]},
+        "Comment" : "VPC Demo",
+        "Name" : { "Fn::Join" : [ "", [{"Ref" : "DnsPrefix"}, ".", {"Ref" : "DnsZone"}, "."]]},
+        "Type" : "CNAME",
+        "TTL" : "900",
+        "ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] } ]
+      }
+    },
+
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
     }
 
   },
+
 
   "Outputs" : {
     "NatInstancePublicIP1" : {
@@ -711,6 +740,12 @@
     "URL" : {
       "Description" : "The URL of the website",
       "Value" :  { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}]]}
+    },
+    "DnsAddress" : {
+      "Description" : "The DNS of the website",
+      "Value" :  { "Fn::Join" : ["", [
+        "http://", { "Ref" : "DnsRecord" }
+      ]]}
     }
   }
 
