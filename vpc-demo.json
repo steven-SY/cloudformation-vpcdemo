@@ -57,7 +57,7 @@
 		"DnsPrefix" : {
       "Description" : "Prefix for Jenkins' DNS record (<prefix>.<zone>)",
       "Type": "String",
-      "Default": "steven.aws"
+      "Default": "steven"
     },
     "DnsZone" : {
       "Description" : "Route53-hosted zone to use for the DNS record (<prefix>.<zone>)",
