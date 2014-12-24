@@ -577,13 +577,14 @@
 
     "WebServerGroup" : {
       "Type" : "AWS::AutoScaling::AutoScalingGroup",
+      "DependsOn" : ["PrivateNatRoute1", "PublicRoute1"],
       "Properties" : {
         "AvailabilityZones" : [{ "Fn::FindInMap" : [ "Region2AZ", { "Ref" : "AWS::Region" }, "AZ1"]}],
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
         "MinSize" : "2",
         "MaxSize" : "2",
         "HealthCheckType" : "EC2",
-        "VPCZoneIdentifier" : [ { "Ref" : "PublicSubnet1" } ],
+        "VPCZoneIdentifier" : [ { "Ref" : "PrivateSubnet1" } ],
         "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
       }
     },
@@ -604,7 +605,7 @@
               "/var/www/html/index.html" : {
                 "content" : { "Fn::Join" : ["\n", [
                   "<img src=\"https://s3-ap-southeast-2.amazonaws.com/vpcdemo/polarseven_logo_transparentbackground_gmail3.png\" alt=\"PolarSeven Logo\"/>",
-                  "<h1>Congratulations, the AWS CloudFormation VPC Demo launched successfully.</h1>"
+                  "<h2>Congratulations, the VPC Demo was launched successfully.</h2>"
                 ]]},
                 "mode"    : "000644",
                 "owner"   : "root",
@@ -652,12 +653,10 @@
                                           { "Fn::FindInMap" : [ "AWSInstanceType2ArchWeb", { "Ref" : "WebServerInstanceType" }, "Arch" ] } ] },
         "SecurityGroups" : [ {"Fn::GetAtt" : ["InstanceSecurityGroup", "GroupId"]} ],
         "InstanceType" : { "Ref" : "WebServerInstanceType" },
-        "AssociatePublicIpAddress" : "true",
         "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
              "#!/bin/bash -xe\n",
              "yum update -y aws-cfn-bootstrap\n",
              "ln -sf /usr/share/zoneinfo/Australia/Sydney /etc/localtime\n",
-
              "/opt/aws/bin/cfn-init -v ",
              "         --stack ", { "Ref" : "AWS::StackName" },
              "         --resource LaunchConfig ",
